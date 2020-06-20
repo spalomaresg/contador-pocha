@@ -1,0 +1,409 @@
+{% extends 'web/base.html' %}
+
+{% load static %}
+{% load game_extras %}
+
+{% block title %}Tournaments{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'web/fontawesome/css/all.min.css' %}">
+<link rel="stylesheet" href="{% static 'web/css/game.css' %}">
+<style>
+
+    @media only screen and (max-width: 768px) {
+        /* For mobile phones: */
+        .container {
+            max-width: 100% !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+
+
+<div class="container">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'web:tournaments' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'web:tournament' tournament=game.tournament %}">{{ game.tournament }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ game.date }}</li>
+      </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center">
+        <h2>{{ game.tournament }} - {{ game.date }}</h2>
+        {% if game|get_num_cards %}
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#myModal">New round</button>
+        {% endif %}
+    </div>
+    <div id="table-rounds2" class="flex-table">
+        <div class="thead sticky">
+            <div class="row flex-row">
+                <div class="col flex-cell">Num Cards</div>
+                {% for player in game.players %}
+                <div class="col flex-cell">
+                    {{ player.player }}
+                    <span class="bet-details"></span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="tbody">
+            {% for round in game.rounds %}
+            <div num_cards="{{ round.num_cards }}" class="row flex-row">
+                <div class="col flex-cell">
+                    {{ round.num_cards }}
+                    <span class="bet-details">/ {{ round.bets|get_bets }}</span>
+                </div>
+                {% for bet in round.bets %}
+                <div bet="{{ bet.bet }}" won="{{ bet.won }}" class="col flex-cell">
+                    <span class="score
+                        {% if bet.bet != bet.won %}
+                            {% with bet.bet|get_diff:bet.won as diff %}
+                            {% if diff == 1 or diff == 2 %}
+                            lose-0
+                            {% elif diff == 3 or diff == 4 %}
+                            lose-1
+                            {% else %}
+                            lose-2
+                            {% endif %}
+                            {% endwith %}
+                        {% else %}
+                            {% if bet.won == 0 %}
+                            win-0
+                            {% elif bet.won == 1 or bet.won == 2 %}
+                            win-1
+                            {% elif bet.won == 3 or bet.won == 4 %}
+                            win-2
+                            {% else %}
+                            win-3
+                            {% endif %}
+                        {% endif %}"></span>
+                    <span class="bet-details">{{ bet.bet }}/{{ bet.won }}</span>
+                    {% if bet.hand == "hand" %}
+                    <i class="fas fa-hand-paper"></i>
+                    {% elif bet.hand == "dessert" %}
+                    <img class="dessert" src="{% static 'web/img/cards.png' %}">
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="myModal" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <!-- Modal content-->
+        <form id="form-new-round" action="{% url 'api:rounds' %}" method="post" class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">New Round</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                {% with game|get_num_cards as num_cards %}
+                <label> Num cards:  <span id="num_cards">{{ num_cards }}</span></label>
+
+                <table id="table-new-round" class="table table-condensed">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Bet (<span id="bets-count">0</span>)</th>
+                            <th>Won (<span id="wins-count">0</span>)</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for player in game.next_round_players %}
+                        <tr>
+                            <td class="player-cell">
+                                <span class="player">{{ player }}</span>
+                                {% if forloop.first %}
+                                <i class="fas fa-hand-paper hand-type"></i>
+                                {% elif forloop.last %}
+                                <img class="dessert hand-type" src="{% static 'web/img/cards.png' %}">
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="new-round-count" type="bet">
+                                    <i class="fas fa-minus-square disabled"></i>
+                                    <span class="bet count">0</span>
+                                    <i class="fas fa-plus-square{% if num_cards == 1 and forloop.last %} disabled{% endif %}"></i>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="new-round-count" type="won">
+                                    <i class="fas fa-minus-square disabled"></i>
+                                    <span class="won count">0</span>
+                                    <i class="fas fa-plus-square"></i>
+                                </div>
+                            </td>
+                            <td class="d-none">
+                                {% if forloop.first %}
+                                hand
+                                {% elif forloop.last %}
+                                dessert
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endwith %}
+            </div>
+            <div class="modal-footer">
+                <button id="submit-new-round" type="submit" class="btn btn-default" disabled>Submit</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+
+        let finished = 1;
+        const num_cards = parseInt($("#num_cards").text());
+
+        function getFormData($form){
+            const unindexed_array = $form.serializeArray();
+            const indexed_array = {};
+
+            $.map(unindexed_array, function(n, i){
+                if (n['name'] in indexed_array) {
+                    if (typeof indexed_array[n['name']] === "string") {
+                        indexed_array[n['name']] = [indexed_array[n['name']], n['value']];
+                    } else {
+                        indexed_array[n['name']].push(n['value']);
+                    }
+                }
+                else {
+                    indexed_array[n['name']] = n['value'];
+                }
+            });
+
+            return indexed_array;
+        }
+
+        $('#form_new_game').submit(function(e) {
+            e.preventDefault();
+
+            const form = $(this);
+            const url = form.attr('action');
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: JSON.stringify(getFormData(form)),
+                dataType: 'json',
+                contentType: 'application/json',
+                beforeSend: function (xhr, settings) {
+                    xhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');
+                },
+                success: function (arg) {
+                    location.reload()
+                },
+                error: function (request, status, error) {
+                    console.log(error);
+                }
+            });
+        });
+
+        $(".bets:not(:last)").change(function() {
+            const count = $(".bets:not(:last)").map(function() {return parseInt(this.value)}).get().reduce((a, b) => a + b, 0);
+            const invalid_bet = num_cards - count;
+            $(".bets:last option").each(function() {
+                if (parseInt(this.value) === invalid_bet)
+                    $(this).prop('disabled', true);
+                else
+                    $(this).prop('disabled', false);
+            });
+            $(".bets:last").val(parseInt($('.bets:last option:not([disabled]):first').attr("value")));
+        });
+
+        $(".wons").change(function() {
+            const count = $(".wons").map(function() {return parseInt(this.value)}).get().reduce((a, b) => a + b, 0);
+            if (count === num_cards)
+                $("#submit-new-round").prop('disabled', false);
+            else
+                $("#submit-new-round").prop('disabled', true);
+        });
+
+        $("#form-new-round").submit(function(e) {
+            e.preventDefault();
+
+            const form = $(this);
+            const url = form.attr('action');
+            const bets = $("#table-new-round tbody tr").map(function() {
+                const columns = this.children;
+                return {
+                    'player': columns[0].innerText.trim(),
+                    'bet': parseInt(columns[1].children[0].innerText.trim()),
+                    'won': parseInt(columns[2].children[0].innerText.trim()),
+                    'hand': columns[3].innerText.trim()
+                };
+            }).get();
+            const data = {
+                'game': {{ game.id }},
+                'num_cards': num_cards,
+                'bets': bets
+            };
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: JSON.stringify(data),
+                dataType: 'json',
+                contentType: 'application/json',
+                beforeSend: function (xhr, settings) {
+                    xhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');
+                },
+                success: function (arg) {
+                    location.reload()
+                },
+                error: function (request, status, error) {
+                    console.log(error);
+                }
+            });
+        });
+
+        const players = {{ game.players|safe }}.map(player => player.player);
+        const scores = new Map(players.map(player => [player, 0]));
+        const bets = new Map(players.map(player => [player, {'count': 0, 'wins': 0, 'loses': 0}]));
+        $("#table-rounds2 .tbody .flex-row").each(function() {
+            const columns = this.children;
+            for (let i=1; i < columns.length; i++) {
+                const player = players[i-1];
+                const cell = columns[i];
+                const bet = parseInt(cell.getAttribute("bet"));
+                bets.get(player).count += bet;
+                const won = parseInt(cell.getAttribute("won"));
+                if (bet === won)
+                    bets.get(player).wins += won;
+                else
+                    bets.get(player).loses += Math.abs(bet-won);
+                const current_score = scores.get(player);
+                const round_score = bet === won ? 10 + won*5 : -Math.abs(bet-won)*5;
+                const new_score = current_score + round_score;
+                scores.set(player, new_score);
+                cell.children[0].innerText = new_score;
+            }
+        });
+        $("#table-rounds2 .thead .flex-row .flex-cell").each(function() {
+            const bet_details = bets.get(this.innerText.trim());
+            if (bet_details) {
+                $(this).children('.bet-details').text(`${bet_details.count}/${bet_details.wins}/${bet_details.loses}`);
+            }
+        });
+
+        $('#myModal').on('shown.bs.modal', function (e) {
+            $("#submit-new-round").prop('disabled', true);
+            const left = Math.max.apply(Math, $('.player').map(function(){ return $(this).width(); }).get());
+            $('.hand-type').css('left', left + 10 + 'px');
+        });
+
+        const last_round = {{ last_round }};
+        function game_last_round() {
+            $.ajax({
+                url: "{% url 'api:game_last_round' tournament=game.tournament game=game.id %}",
+                type: 'POST',
+                beforeSend: function (xhr, settings) {
+                    xhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');
+                },
+                success: function (response) {
+                    if (response && response.last_round > last_round)
+                        location.reload();
+                },
+                error: function (request, status, error) {
+                    console.log(error);
+                }
+            });
+        }
+
+        if (num_cards) {
+            //setInterval(game_last_round, 1000);
+        }
+
+        const hands_count = {
+            'bet': 0,
+            'won': 0
+        }
+        const last_bet = $(".new-round-count[type='bet']").last();
+        let last_bet_value = 0;
+        $(".new-round-count > i").click(function() {
+            last_bet_value = parseInt(last_bet.children('.bet').text());
+            const $this = $(this);
+            if ($this.hasClass('disabled'))
+                return;
+            const type = $this.parent().attr('type');
+            const count = $this.siblings(".count");
+
+            let new_count = parseInt(count.text());
+            if ($this.hasClass("fa-minus-square")) {
+                const increment = $this.parent().get(0) === last_bet.get(0) && hands_count['bet'] - 1 === num_cards ? 2 : 1;
+                hands_count[type] -= increment;
+                new_count -= increment;
+                if (new_count == 0)
+                    $this.addClass('disabled');
+                if (hands_count['bet'] < num_cards) {
+                    $('.won').siblings('.fa-plus-square').removeClass("disabled");
+                    $("#submit-new-round").prop('disabled', true);
+                }
+
+                $this.siblings('.fa-plus-square').removeClass("disabled");
+
+                if (hands_count['bet'] + 1 < num_cards) {
+                    last_bet.children(".fa-plus-square").removeClass('disabled');
+                }
+            }
+            else if ($this.hasClass("fa-plus-square")) {
+                const increment = $this.parent().get(0) === last_bet.get(0) && hands_count['bet'] + 1 === num_cards ? 2 : 1;
+                hands_count[type] += increment;
+                new_count += increment;
+                if (new_count == num_cards)
+                    $this.addClass('disabled');
+                if (hands_count['won'] == num_cards) {
+                    //$('.won').siblings('.fa-plus-square').addClass('disabled');
+                    $("#submit-new-round").prop('disabled', false);
+                }
+
+                $this.siblings('.fa-minus-square').removeClass("disabled");
+                if (num_cards === 1 && hands_count['bet'] === 2) {
+                    last_bet.children(".fa-minus-square").addClass('disabled');
+                }
+            }
+
+            count.text(new_count);
+            $("#bets-count").text(hands_count['bet']);
+            $("#wins-count").text(hands_count['won']);
+
+            last_bet_value = parseInt(last_bet.children('.bet').text());
+            console.log(hands_count['bet'] + 1 == num_cards);
+            console.log(last_bet_value == hands_count['bet'] - 1);
+            if (hands_count['bet'] + 1 == num_cards && (last_bet_value == hands_count['bet'] - 1 || num_cards - 1 === last_bet_value)) {
+                console.log(last_bet_value);
+                last_bet.children('.fa-plus-square').addClass('disabled');
+            } else if (last_bet_value != num_cards) {
+                last_bet.children('.fa-plus-square').removeClass('disabled');
+            }
+            if (hands_count['bet'] - 1 == num_cards  && last_bet_value == hands_count['bet'] + 1) {
+                last_bet.children('.fa-minus-square').addClass('disabled');
+            } else if (last_bet_value != 0) {
+                last_bet.children('.fa-minus-square').removeClass('disabled');
+            }
+
+            if (hands_count['bet'] == num_cards) {
+                if (!last_bet.children('.fa-minus-square').hasClass('disabled'))
+                    last_bet.children('.fa-minus-square').trigger('click');
+                else
+                    last_bet.children('.fa-plus-square').trigger('click');
+            }
+        });
+
+    </script>
+{% endblock %}

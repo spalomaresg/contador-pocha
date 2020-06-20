@@ -1,0 +1,72 @@
+{% extends 'web/base.html' %}
+
+{% block title %}Tournaments{% endblock %}
+
+{% block body %}
+
+
+<div class="container">
+
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item active" aria-current="page">Home</li>
+      </ol>
+    </nav>
+
+    <h2>Tournaments</h2>
+
+    <div class="list-group">
+        {% for tournament in tournaments %}
+        <a href="{% url 'web:tournament' tournament=tournament.name %}" class="list-group-item list-group-item-action">{{ tournament.name }}</a>
+        {% endfor %}
+    </div>
+
+    <hr>
+
+    <form id="form_new_tournament" action="{% url 'api:tournaments' %}" method="post">
+        {% csrf_token %}
+        <input type="text" name="name" autocomplete="off" required>
+        <button type="submit">Create</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+
+        function getFormData($form){
+            const unindexed_array = $form.serializeArray();
+            const indexed_array = {};
+
+            $.map(unindexed_array, function(n, i){
+                indexed_array[n['name']] = n['value'];
+            });
+
+            return indexed_array;
+        }
+
+        $('#form_new_tournament').submit(function(e) {
+            e.preventDefault();
+
+            const form = $(this);
+            const url = form.attr('action');
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: JSON.stringify(getFormData(form)),
+                dataType: 'json',
+                contentType: 'application/json',
+                beforeSend: function (xhr, settings) {
+                    xhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');
+                },
+                success: function (arg) {
+                    location.reload()
+                },
+                error: function (request, status, error) {
+                    console.log(error);
+                }
+            });
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,400 @@
+{% extends 'web/base.html' %}
+
+{% load static %}
+{% load game_extras %}
+
+{% block title %}{{ tournament }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{% static 'web/bootstrap/css/bootstrap-select.min.css' %}">
+<link rel="stylesheet" href="{% static 'web/fontawesome/css/all.min.css' %}">
+<link rel="stylesheet" href="{% static 'web/css/tournament.css' %}">
+{% endblock %}
+
+{% block body %}
+<!-- Modal -->
+<div id="myModal" class="modal fade" role="dialog">
+    <div class="modal-dialog">
+        <!-- Modal content-->
+        <form id="form-new-game" action="{% url 'api:tournament_games' tournament=tournament %}" method="post" class="modal-content" onkeydown="return event.key != 'Enter';">
+            <div class="modal-header">
+                <h4 class="modal-title">New game</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="tournament" value="{{ tournament }}" readonly>
+                <div class="form-group">
+                    <label>Rules</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="false" name="repeat_one" id="repeat_one">
+                        <label class="form-check-label" for="repeat_one">
+                        Repeat 1 card rounds
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="true" name="repeat_highest" id="repeat_highest" checked>
+                        <label class="form-check-label" for="repeat_highest">
+                        Repeat highest card rounds
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="player">Players</label>
+                    <div class="input-group mb-3">
+                        <input id="player" list="players-list" type="text" class="form-control" placeholder="New player name" aria-label="Enter player name" aria-describedby="basic-addon2">
+                        <div class="input-group-append">
+                            <button id="add-player" class="btn btn-outline-secondary" type="button">Add</button>
+                        </div>
+                    </div>
+
+                    <datalist id="players-list">
+                        {% for player in players %}
+                        <option value="{{ player.name }}">
+                        {% endfor %}
+                    </datalist>
+
+                    <ul id="players-sorted" class="list-group">
+                        {% for player in next_players.next_players %}
+                        <li class="list-group-item list-group-item-action" style="padding: .5rem .75rem;">
+                            <span class="player">{{ player }}</span><i class="fas fa-user-slash"></i>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="submit-new-round" type="submit" class="btn btn-default">Submit</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+<div class="container pb-5 mb-5">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'web:tournaments' %}">Home</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ tournament }}</li>
+      </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-center">
+        <h2>{{ tournament }}</h2>
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#myModal">New game</button>
+    </div>
+    <ul class="nav nav-tabs" id="pills-tab" role="tablist">
+        <li class="nav-item active">
+            <a class="nav-link active" id="pills-games-tab" data-toggle="pill" href="#pills-games" role="tab" aria-controls="pills-games" aria-selected="true">Games</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="pills-standings-tab" data-toggle="pill" href="#pills-standings" role="tab" aria-controls="pills-standings" aria-selected="false">Standings</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="pills-stats-tab" data-toggle="pill" href="#pills-stats" role="tab" aria-controls="pills-stats" aria-selected="false">Stats</a>
+        </li>
+    </ul>
+    <div class="tab-content" id="pills-tabContent" style="margin-top: 10px;">
+        <div class="tab-pane fade show active active in" id="pills-games" role="tabpanel" aria-labelledby="pills-game-tab">
+            <div class="list-group">
+                {% for game in games %}
+                <a href="{% url 'web:game' tournament=tournament game=game.id %}" class="list-group-item list-group-item-action">{{ game.date }}</a>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="tab-pane fade tableFixHead" id="pills-standings" role="tabpanel" aria-labelledby="pills-standings-tab">
+            <table id="table-standings" class="table table-condensed table-striped pb-5 mb-5">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Date</th>
+                        {% for player in standings.total_standings.keys %}
+                        <th>{{ player }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for date, game_standings in standings.games_standings.items %}
+                    <tr>
+                        <td>{{ date }}</td>
+                        {% for player in standings.total_standings.keys %}
+                        <td {% if game_standings|get:player|get:"pos" == "victory" %}class="font-weight-bold text-success"{% endif %}>{{ game_standings|get:player|get:"score" }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                    <tr class="font-weight-bold">
+                        <td>Total wins</td>
+                        {% for details in standings.total_standings.values %}
+                        <td>{{ details.wins }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr class="font-weight-bold">
+                        <td>Total score</td>
+                        {% for details in standings.total_standings.values %}
+                        <td>{{ details.total }}</td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="tab-pane fade" id="pills-stats" role="tabpanel" aria-labelledby="pills-game-tab">
+            <div class="row mt-3">
+                <div class="col-12 col-lg-6 col-xl-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Puntos por fase</h5>
+                            <table class="table" style="table-layout: fixed;">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Jugador</th>
+                                        <th>Sube</th>
+                                        <th>Max cartas</th>
+                                        <th>Baja</th>
+                                    </tr>
+                                </thead>
+
+                                {% with ascending_avg=stats.players_game_phases.Promedio.ascending max_cards_avg=stats.players_game_phases.Promedio.max_cards descending_avg=stats.players_game_phases.Promedio.descending %}
+                                <tbody>
+                                    {% for player, details in stats.players_game_phases.items %}
+                                    {% if not forloop.last %}
+                                    <tr>
+                                        <td>{{ player }}</td>
+                                        <td class="{% if details.ascending|is_bigger:ascending_avg %}text-success{% else %}text-danger{% endif %}">{{ details.ascending }}</td>
+                                        <td class="{% if details.max_cards|is_bigger:max_cards_avg %}text-success{% else %}text-danger{% endif %}">{{ details.max_cards }}</td>
+                                        <td class="{% if details.descending|is_bigger:descending_avg %}text-success{% else %}text-danger{% endif %}">{{ details.descending }}</td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th>Promedio</th>
+                                        <th>{{ ascending_avg }}</th>
+                                        <th>{{ max_cards_avg }}</th>
+                                        <th>{{ descending_avg }}</th>
+                                    </tr>
+                                </tfoot>
+                                {% endwith %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-6 col-xl-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Puntos por posición/partida</h5>
+                            <table class="table" style="table-layout: fixed;">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Jugador</th>
+                                        <th>Victoria</th>
+                                        <th>Podio</th>
+                                        <th>Otro</th>
+                                        <th>Derrota</th>
+                                    </tr>
+                                </thead>
+
+                                {% with victory=stats.players_game_pos.Promedio.victory.score podium=stats.players_game_pos.Promedio.podium.score other=stats.players_game_pos.Promedio.other.score defeat=stats.players_game_pos.Promedio.defeat.score %}
+                                <tbody>
+                                    {% for player, details in stats.players_game_pos.items %}
+                                    {% if not forloop.last %}
+                                    <tr>
+                                        <td>{{ player }}</td>
+                                        <td><span class="{% if details.victory.score|is_bigger:victory %}text-success{% elif details.victory.score %}text-danger{% endif %}">{{ details.victory.score }}</span> ({{ details.victory.total }})</td>
+                                        <td><span class="{% if details.podium.score|is_bigger:podium %}text-success{% elif details.podium.score %}text-danger{% endif %}">{{ details.podium.score }}</span> ({{ details.podium.total }})</td>
+                                        <td><span class="{% if details.other.score|is_bigger:other %}text-success{% elif details.other.score %}text-danger{% endif %}">{{ details.other.score }}</span> ({{ details.other.total }})</td>
+                                        <td><span class="{% if details.defeat.score|is_bigger:defeat %}text-success{% elif details.defeat.score %}text-danger{% endif %}">{{ details.defeat.score }}</span> ({{ details.defeat.total }})</td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th>Promedio</th>
+                                        <th>{{ victory }}</th>
+                                        <th>{{ podium }}</th>
+                                        <th>{{ other }}</th>
+                                        <th>{{ defeat }}</th>
+                                    </tr>
+                                </tfoot>
+                                {% endwith %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-12 col-xl-12 mt-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Puntos por posición/ronda</h5>
+                            <table class="table add-avg" style="table-layout: fixed;">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Jugador</th>
+                                        {% for pos in stats.game_max_players %}
+                                        <th>{{ pos }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {% for player, details in stats.player_rounds_pos.items %}
+                                    <tr>
+                                        <td>{{ player }}</td>
+                                        {% for pos, sub_details in details.items %}
+                                        <td>{{ sub_details.score }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'web/bootstrap/js/bootstrap-select.min.js' %}"></script>
+    <script src="{% static 'web/js/Sortable.js' %}"></script>
+    <script>
+
+        $('.selectpicker').selectpicker();
+        const sortable = Sortable.create(document.getElementById('players-sorted'));
+
+        $('#players').keyup(function(e) {
+            if(e.keyCode == 13) {
+               $("#add-player").trigger('click');
+            }
+        });
+
+        $('#add-player').click(function() {
+            const player = $("#player").val();
+            if (player) {
+                $("#players-sorted").append($('<li>', {
+                    html: `<span class="player">${player}</span><i class="fas fa-user-slash"></i>`,
+                    class: "list-group-item list-group-item-action",
+                    style: "padding: .5rem .75rem;"
+                }));
+            }
+            $("#player").val("");
+        });
+
+        $('#players-sorted').on('click', 'li .fa-user-slash', function(){
+            $(this).parent().remove();
+        });
+
+        function getFormData($form){
+            const unindexed_array = $form.serializeArray();
+            const indexed_array = {};
+
+            $.map(unindexed_array, function(n, i){
+                if (n['name'] in indexed_array) {
+                    if (typeof indexed_array[n['name']] === "string") {
+                        indexed_array[n['name']] = [indexed_array[n['name']], n['value']];
+                    } else {
+                        indexed_array[n['name']].push(n['value']);
+                    }
+                }
+                else {
+                    indexed_array[n['name']] = n['value'];
+                }
+            });
+
+            return indexed_array;
+        }
+
+        $('#form-new-game').submit(function(e) {
+            e.preventDefault();
+
+            const form = $(this);
+            const url = form.attr('action');
+            const players = $.map( $('#players-sorted li .player'), function( player ) {
+                return player.innerText;
+            });
+            const data = {
+                'repeat_one': $("#repeat_one").is(":checked"),
+                'repeat_highest': $("#repeat_highest").is(":checked"),
+                'players': players
+            };
+
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: JSON.stringify(data),
+                dataType: 'json',
+                contentType: 'application/json',
+                beforeSend: function (xhr, settings) {
+                    xhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');
+                },
+                success: function (game) {
+                    if (game && game.id)
+                        window.location = "{% url 'web:game' tournament=tournament game=0  %}".replace("/0/", `/${game.id}/`);
+                },
+                error: function (request, status, error) {
+                    console.log(error);
+                }
+            });
+        });
+
+        $(".add-avg").each(function() {
+            const table = $(this);
+            const rows = table.children('tbody').children('tr');
+            const tfoot = $('<tfoot>');
+            const tr = $('<tr>');
+            tr.append($('<th>').text('Promedio'));
+
+            const scores = {}
+            rows.each(function() {
+                $(this).children('td').each(function(idx) {
+                    if (idx === 0)
+                        return;
+
+                    if (!(idx in scores))
+                        scores[idx] = 0
+                    scores[idx] += parseFloat($(this).text());
+                });
+            });
+            Object.values(scores).forEach(function(score, idx) {
+                const avg = (score / rows.length).toFixed(2);
+                tr.append($('<th>').text(avg));
+                scores[idx+1] = avg;
+            });
+            rows.each(function() {
+                $(this).children('td').each(function(idx) {
+                    if (idx === 0)
+                        return;
+
+                    const value = parseFloat($(this).text());
+                    if (value < scores[idx])
+                        $(this).addClass('text-dangerº');
+                    else
+                        $(this).addClass('text-success');
+                });
+            });
+            tfoot.append(tr);
+            table.append(tfoot);
+        });
+
+        const differencesRow = $('<tr>', {'class': 'font-weight-bold'});
+        $("#table-standings tbody tr:last td").each(function(idx) {
+            if (idx == 0) {
+                differencesRow.append($('<td>').text('Differences'));
+            }
+            else if (idx == 1) {
+                differencesRow.append($('<td>').text(''));
+            }
+            else {
+                const prev = parseInt($(this).prev().text());
+                const current = parseInt($(this).text());
+                differencesRow.append($('<td>').text(prev - current));
+            }
+        });
+        $("#table-standings tbody").append(differencesRow);
+
+
+    </script>
+{% endblock %}

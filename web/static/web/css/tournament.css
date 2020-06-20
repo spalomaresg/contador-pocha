@@ -1,0 +1,23 @@
+#players-sorted li {
+    padding: .5rem .75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#players-sorted li .fa-user-slash:hover {
+    cursor: pointer;
+    color: firebrick;
+}
+
+.tableFixHead          { height: 100px; }
+.tableFixHead thead th { position: sticky; top: 0; }
+
+table  { border-collapse: collapse; width: 100%; }
+th, td { padding: 8px 16px; }
+th     { background:#eee; }
+
+#pills-stats table {
+    margin: 0;
+    font-size: .9rem;
+}

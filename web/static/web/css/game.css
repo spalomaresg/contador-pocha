@@ -1,0 +1,150 @@
+table tr td, table tr th {
+    padding: .5rem !important;
+}
+
+table tr th:first-child, table tr td:first-child {
+    padding-left: 0 !important;
+}
+
+.sticky {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: white;
+}
+
+.flex-table {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+}
+
+.flex-row {
+    display: flex;
+    width: 100%;
+}
+
+.row {
+    margin: 0;
+}
+
+.flex-row .col {
+    padding: 0;
+}
+
+.thead .flex-cell {
+    border-bottom: 2px solid #dee2e6;
+    font-weight: bold;
+    flex-direction: column;
+    align-items: start;
+    justify-content: center;
+}
+
+.thead .flex-cell .bet-details {
+    margin: 0;
+}
+
+.flex-cell {
+    display: flex;
+    align-items: center;
+    border-top: 1px solid #dee2e6;
+}
+
+.score {
+    width: 40px;
+    padding: 5px;
+    color: white;
+}
+
+.bet-details {
+    margin: 0 10px;
+    font-size: .8rem;
+    color: darkgrey;
+    font-family: monospace, monospace;
+    margin-top: 2px;
+}
+
+.fa-hand-paper {
+    color: darkgrey;
+}
+
+.lose-0 {
+    background-color: #d57676;
+}
+
+.lose-1 {
+    background-color: #c94f4f;
+}
+
+.lose-2 {
+    background-color: #b03636;
+}
+
+.win-0 {
+    background-color: #66cc94;
+}
+
+.win-1 {
+    background-color: #3cb371;
+}
+
+.win-2 {
+    background-color: #2d8655;
+}
+
+.win-3 {
+    background-color: #194d30;
+}
+
+.spree-start {
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    padding-top: 2.5px;
+    margin-top: 2.5px;
+}
+
+.spree-end {
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    padding-bottom: 2.5px;
+    margin-bottom: 2.5px;
+}
+
+.dessert {
+    width: 17px;
+}
+
+.new-round-count {
+    display: flex;
+    align-items: center;
+}
+
+.new-round-count > i {
+    font-size: 1.3rem;
+    color: #66737f;
+}
+
+.new-round-count > i.disabled {
+    color: darkgray;
+}
+
+.new-round-count > i:not(.disabled):hover {
+    cursor: pointer;
+    color: #212529;
+}
+
+.new-round-count > .count {
+    margin: 0 10px;
+    width: 20px;
+    text-align: center;
+}
+
+.player-cell {
+    position: relative;
+}
+
+.hand-type {
+    position: absolute;
+    top: 10px;
+}
