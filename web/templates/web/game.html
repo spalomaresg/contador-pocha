@@ -383,15 +383,13 @@
             $("#wins-count").text(hands_count['won']);
 
             last_bet_value = parseInt(last_bet.children('.bet').text());
-            console.log(hands_count['bet'] + 1 == num_cards);
-            console.log(last_bet_value == hands_count['bet'] - 1);
             if (hands_count['bet'] + 1 == num_cards && (last_bet_value == hands_count['bet'] - 1 || num_cards - 1 === last_bet_value)) {
                 console.log(last_bet_value);
                 last_bet.children('.fa-plus-square').addClass('disabled');
             } else if (last_bet_value != num_cards) {
                 last_bet.children('.fa-plus-square').removeClass('disabled');
             }
-            if (hands_count['bet'] - 1 == num_cards  && last_bet_value == hands_count['bet'] + 1) {
+            if (hands_count['bet'] - 1 == num_cards  && (last_bet_value == hands_count['bet'] + 1 || last_bet_value === 1)) {
                 last_bet.children('.fa-minus-square').addClass('disabled');
             } else if (last_bet_value != 0) {
                 last_bet.children('.fa-minus-square').removeClass('disabled');
