@@ -13,6 +13,7 @@ import math
 from collections import deque
 
 
+@csrf_exempt
 def tournament_list(request):
     if request.method == 'GET':
         snippets = Tournament.objects.all()
@@ -210,8 +211,31 @@ def game_info(request, tournament, game):
         next_round_players = list(GamePlayer.objects.filter(game=game).order_by('id').values_list('player__name', flat=True))
         pos = len(data['rounds']) % len(data['players'])
         next_round_players = next_round_players[pos:] + next_round_players[:pos]
+        data['numCards'] = get_num_cards(data)
         data['next_round_players'] = next_round_players
         return JsonResponse(data, safe=False)
+
+
+def get_num_cards(game):
+    rounds = game.get('rounds', [])
+    num_players = len(game.get('players', []))
+    rounds_num_cards = [round['num_cards'] for round in rounds]
+    if not rounds:
+        return 1
+    else:
+        max_cards = math.floor(40 / len(game['players']))
+        prev_num_cards = rounds_num_cards[-1]
+        if game['repeat_one'] and (len(rounds_num_cards) < num_players or rounds_num_cards[-1] == 2):
+            return 1
+        elif game['repeat_highest'] and len(rounds_num_cards) >= max_cards and rounds_num_cards[-num_players] != max_cards and rounds_num_cards[-1] in [max_cards, max_cards-1]:
+            return max_cards
+        elif len(rounds_num_cards) > 1 and prev_num_cards == 1 and not game['repeat_one']:
+            return 0
+        else:
+            if max_cards in rounds_num_cards:
+                return prev_num_cards - 1
+            else:
+                return prev_num_cards + 1
 
 
 def game_last_round(request, tournament, game):

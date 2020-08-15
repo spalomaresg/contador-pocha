@@ -75,6 +75,7 @@ class GameSerializerGet(serializers.ModelSerializer):
     tournament = serializers.StringRelatedField(many=False, read_only=True)
     rounds = RoundSerializer(many=True, read_only=True)
     players = GamePlayerSerializer(many=True, read_only=True, source="gameplayers")
+    date = serializers.DateField(format='%d.%m.%Y')
 
     class Meta:
         model = Game
