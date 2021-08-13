@@ -8,6 +8,8 @@
 {% block styles %}
 <link rel="stylesheet" href="{% static 'web/fontawesome/css/all.min.css' %}">
 <link rel="stylesheet" href="{% static 'web/css/game.css' %}">
+<script src="{% static 'web/js/update_table.js' %}"></script>
+
 <style>
 
     @media only screen and (max-width: 768px) {
@@ -113,7 +115,7 @@
                         <tr>
                             <th>Name</th>
                             <th>Bet (<span id="bets-count">0</span>)</th>
-                            <th>Won (<span id="wins-count">0</span>)</th>
+                            <th>Won (<span id="wons-count">0</span>)</th>
                         </tr>
                     </thead>
 
@@ -130,16 +132,16 @@
                             </td>
                             <td>
                                 <div class="new-round-count" type="bet">
-                                    <i class="fas fa-minus-square disabled"></i>
-                                    <span class="bet count">0</span>
-                                    <i class="fas fa-plus-square{% if num_cards == 1 and forloop.last %} disabled{% endif %}"></i>
+                                    <i class="fas fa-minus-square disabled" player = {{player}}-bet></i>
+                                    <span class="bet count" player = {{player}}>0</span>
+                                    <i class="fas fa-plus-square{% if num_cards == 1 and forloop.last %} disabled{% endif %}" player = {{player}}-bet></i>
                                 </div>
                             </td>
                             <td>
                                 <div class="new-round-count" type="won">
-                                    <i class="fas fa-minus-square disabled"></i>
-                                    <span class="won count">0</span>
-                                    <i class="fas fa-plus-square"></i>
+                                    <i class="fas fa-minus-square disabled" player = {{player}}-won></i>
+                                    <span class="won count" player = {{player}}>0</span>
+                                    <i class="fas fa-plus-square" player = {{player}}-won></i>
                                 </div>
                             </td>
                             <td class="d-none">
@@ -265,11 +267,18 @@
                 },
                 success: function (arg) {
                     location.reload()
+                    console.log("New round uploaded successfully")
                 },
                 error: function (request, status, error) {
+                    console.log(status)
                     console.log(error);
                 }
             });
+
+            ws.send(
+                JSON.stringify(data)
+            )
+            document.getElementsByClassName("modal-footer")[0].children[1].click()
         });
 
         const players = {{ game.players|safe }}.map(player => player.player);
@@ -345,14 +354,18 @@
 
             let new_count = parseInt(count.text());
             if ($this.hasClass("fa-minus-square")) {
-                const increment = $this.parent().get(0) === last_bet.get(0) && hands_count['bet'] - 1 === num_cards ? 2 : 1;
+                var increment = $this.parent().get(0) === last_bet.get(0) && hands_count['bet'] - 1 === num_cards ? 2 : 1;
                 hands_count[type] -= increment;
                 new_count -= increment;
                 if (new_count == 0)
                     $this.addClass('disabled');
+                    
                 if (hands_count['bet'] < num_cards) {
-                    $('.won').siblings('.fa-plus-square').removeClass("disabled");
                     $("#submit-new-round").prop('disabled', true);
+                }
+
+                if (hands_count['won'] < num_cards) {
+                    $('.won').siblings('.fa-plus-square').removeClass("disabled");
                 }
 
                 $this.siblings('.fa-plus-square').removeClass("disabled");
@@ -362,13 +375,13 @@
                 }
             }
             else if ($this.hasClass("fa-plus-square")) {
-                const increment = $this.parent().get(0) === last_bet.get(0) && hands_count['bet'] + 1 === num_cards ? 2 : 1;
+                var increment = $this.parent().get(0) === last_bet.get(0) && hands_count['bet'] + 1 === num_cards ? 2 : 1;
                 hands_count[type] += increment;
                 new_count += increment;
                 if (new_count == num_cards)
                     $this.addClass('disabled');
                 if (hands_count['won'] == num_cards) {
-                    //$('.won').siblings('.fa-plus-square').addClass('disabled');
+                    $('.won').siblings('.fa-plus-square').addClass('disabled');
                     $("#submit-new-round").prop('disabled', false);
                 }
 
@@ -380,7 +393,7 @@
 
             count.text(new_count);
             $("#bets-count").text(hands_count['bet']);
-            $("#wins-count").text(hands_count['won']);
+            $("#wons-count").text(hands_count['won']);
 
             last_bet_value = parseInt(last_bet.children('.bet').text());
             if (hands_count['bet'] + 1 == num_cards && (last_bet_value == hands_count['bet'] - 1 || num_cards - 1 === last_bet_value)) {
@@ -400,6 +413,33 @@
                     last_bet.children('.fa-minus-square').trigger('click');
                 else
                     last_bet.children('.fa-plus-square').trigger('click');
+            }
+
+            if($this.hasClass("fa-minus-square")){
+
+                ws.send(
+                    JSON.stringify(
+                        {
+                            "increment": -increment,
+                            "player": $this.attr("player"),
+                            "type": $this.parent().attr("type"),
+                            "plus": $this.siblings('.fa-plus-square').hasClass("disabled") ? "disabled" : "enabled",
+                            "minus": $this.hasClass("disabled") ? "disabled" : "enabled"
+                        }
+                    )
+                )
+            }else{
+                ws.send(
+                    JSON.stringify(
+                        {
+                            "increment": increment,
+                            "player": $this.attr("player"),
+                            "type": $this.parent().attr("type"),
+                            "plus": $this.hasClass("disabled") ? "disabled" : "enabled",
+                            "minus": $this.siblings('.fa-minus-square').hasClass("disabled") ? "disabled" : "enabled"
+                        }
+                    )
+                )
             }
         });
 
