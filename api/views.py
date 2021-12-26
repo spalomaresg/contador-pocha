@@ -53,7 +53,7 @@ def tournament_games(request, tournament):
 @csrf_exempt
 def tournament_next_players(request, tournament):
     response = {'next_players': []}
-    tournament = Tournament.objects.get(name=tournament)
+    tournament = Tournament.objects.get(id=tournament)
     last_game = Game.objects.filter(tournament=tournament).order_by('id').last()
     if last_game:
         next_players = deque(GamePlayer.objects.filter(game=last_game).order_by('id').values_list('player__name', flat=True))
@@ -64,7 +64,7 @@ def tournament_next_players(request, tournament):
 
 @csrf_exempt
 def tournament_standings(request, tournament):
-    tournament = Tournament.objects.get(name=tournament)
+    tournament = Tournament.objects.get(id=tournament)
     players = Player.objects.filter(gameplayer_player__game__tournament=tournament).distinct().values_list('name', flat=True)
     total_standings = {player: {'total': 0, 'wins': 0} for player in players}
     games_standings = {}
@@ -87,10 +87,11 @@ def tournament_stats(request, tournament):
     lose streak
 
     """
-    tournament = Tournament.objects.get(name=tournament)
+    tournament = Tournament.objects.get(id=tournament)
     players = list(Player.objects.filter(gameplayer_player__game__tournament=tournament).distinct().values_list('name', flat=True))
-    game_max_players = max([len(GamePlayer.objects.filter(game=game)) for game in Game.objects.filter(tournament=tournament)])
-    max_cards = math.floor(40/game_max_players) if players else 0
+    game_max_players = max([len(GamePlayer.objects.filter(game=game)) for game in Game.objects.filter(tournament=tournament)], default=0)
+    game_min_players = min([len(GamePlayer.objects.filter(game=game)) for game in Game.objects.filter(tournament=tournament)], default=0)
+    max_cards = math.floor(40/game_min_players) if players else 0
     stats = {
         'players': players,
         'game_max_players': [i for i in range(1, game_max_players + 1)],

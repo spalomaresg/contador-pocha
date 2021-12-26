@@ -2,7 +2,11 @@ bin/
 lib/
 lib64/
 pyvenv.cfg
-Pocha/__pychache__/
-web/__pychache__/
-api/__pychache__/
+Pocha/__pycache__/
+web/__pycache__/
+web/migrations/__pycache__
+web/templatetags/__pycache__
+api/__pycache__/
+api/migrations/__pycache__/
+.venv
 

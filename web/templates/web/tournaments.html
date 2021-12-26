@@ -17,7 +17,7 @@
 
     <div class="list-group">
         {% for tournament in tournaments %}
-        <a href="{% url 'web:tournament' tournament=tournament.name %}" class="list-group-item list-group-item-action">{{ tournament.name }}</a>
+        <a href="{% url 'web:tournament' tournament=tournament.id %}" class="list-group-item list-group-item-action">{{ tournament.name }}</a>
         {% endfor %}
     </div>
 
