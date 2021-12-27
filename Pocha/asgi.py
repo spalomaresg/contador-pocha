@@ -20,6 +20,6 @@ application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     "websocket":
         URLRouter([
-            url(r"^round_results",MyConsumer.as_asgi())
+            url(r"^round_results", MyConsumer.as_asgi())
         ]),
 })

@@ -12,11 +12,6 @@ from django.urls import reverse
 from api.models import Tournament
 
 
-
-def get_tournament_name(id):
-    return Tournament.objects.get(id=id).name
-
-
 # These 3 views implementations aim to serve as a testing environment
 # for the async view compatibility. 
 
@@ -40,7 +35,6 @@ async def tournaments(request):
 async def tournament(request, tournament):
 
     async with httpx.AsyncClient(timeout=10.0) as client:
-        tournament_name = get_tournament_name(tournament)
         games = await client.get("http://127.0.0.1:8000/api/tournaments/{}/games/".format(tournament))
         players = await client.get("http://127.0.0.1:8000/api/players/".format(tournament))
         next_players = await client.get("http://127.0.0.1:8000/api/tournaments/{}/next_players/".format(tournament))
@@ -48,7 +42,7 @@ async def tournament(request, tournament):
         stats = await client.get("http://127.0.0.1:8000/api/tournaments/{}/stats/".format(tournament))
     
     context = {
-        'tournament': tournament_name,
+        'tournament': tournament,
         'games': games.json(),
         'players': players.json(),
         'next_players': next_players.json(),
@@ -63,44 +57,8 @@ async def tournament(request, tournament):
 # a co-routine. Documentation suggests preprending "async def"
 # to the view's __call__() method but it doesn't seem to work.
 # Alternatively one can overwrite the as_view() method as shown
-# below
+# belows
 
-class TournamentView(DetailView):
-
-    model = Tournament
-    template_name = "web/tournament.html"
-
-    @classonlymethod
-    def as_view(cls, **initkwargs):
-        view = super().as_view(**initkwargs)
-        view._is_coroutine = asyncio.coroutines._is_coroutine
-        return view
-
-    async def get_context_data(self, **kwargs):
-        # Call the base implementation first to get a context
-        context = super().get_context_data(**kwargs)
-
-        object = self.get_object()
-        
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            games = await client.get("http://127.0.0.1:8000/api/tournaments/{}/games/".format(tournament))
-            players = await client.get("http://127.0.0.1:8000/api/players/".format(tournament))
-            next_players = await client.get("http://127.0.0.1:8000/api/tournaments/{}/next_players/".format(tournament))
-            standings = await client.get("http://127.0.0.1:8000/api/tournaments/{}/standings/".format(tournament))
-            stats = await client.get("http://127.0.0.1:8000/api/tournaments/{}/stats/".format(tournament))
-        
-        extra = {
-            'tournament': tournament_name,
-            'games': games.json(),
-            'players': players.json(),
-            'next_players': next_players.json(),
-            'standings': standings.json(),
-            'stats': stats.json(),
-        }
-
-        context.update(extra)
-
-        return context
 
 class GameView(TemplateView):
     template_name = "web/game.html"

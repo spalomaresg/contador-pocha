@@ -2,6 +2,9 @@ from django import template
 import math
 from itertools import cycle
 
+from django.template.defaultfilters import register
+from urllib.parse import unquote as pyunquote #python3
+
 register = template.Library()
 
 
@@ -53,3 +56,8 @@ def get_bets(bets):
 @register.filter(name='is_bigger')
 def is_bigger(n1, n2):
     return float(n1) >= float(n2)
+
+
+@register.filter
+def unquote(value):
+    return pyunquote(value)

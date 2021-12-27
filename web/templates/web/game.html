@@ -319,7 +319,7 @@
         const last_round = {{ last_round }};
         function game_last_round() {
             $.ajax({
-                url: "{% url 'api:game_last_round' tournament=game.tournament game=game.id %}",
+                url: "{% url 'api:game_last_round' tournament=game.tournament.id game=game.id %}",
                 type: 'POST',
                 beforeSend: function (xhr, settings) {
                     xhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');
