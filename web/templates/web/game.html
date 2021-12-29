@@ -132,16 +132,16 @@
                             </td>
                             <td>
                                 <div class="new-round-count" type="bet">
-                                    <i class="fas fa-minus-square disabled" player = {{player}}-bet></i>
+                                    <i class="bet fas fa-minus-square disabled" player = {{player}}-bet></i>
                                     <span class="bet count" player = {{player}}>0</span>
-                                    <i class="fas fa-plus-square{% if num_cards == 1 and forloop.last %} disabled{% endif %}" player = {{player}}-bet></i>
+                                    <i class="bet fas fa-plus-square{% if num_cards == 1 and forloop.last %} disabled{% endif %}" player = {{player}}-bet></i>
                                 </div>
                             </td>
                             <td>
                                 <div class="new-round-count" type="won">
-                                    <i class="fas fa-minus-square disabled" player = {{player}}-won></i>
+                                    <i class="won fas fa-minus-square disabled" player = {{player}}-won></i>
                                     <span class="won count" player = {{player}}>0</span>
-                                    <i class="fas fa-plus-square" player = {{player}}-won></i>
+                                    <i class="won fas fa-plus-square" player = {{player}}-won></i>
                                 </div>
                             </td>
                             <td class="d-none">
@@ -319,7 +319,7 @@
         const last_round = {{ last_round }};
         function game_last_round() {
             $.ajax({
-                url: "{% url 'api:game_last_round' tournament=game.tournament.id game=game.id %}",
+                url: "{% url 'api:game_last_round' tournament=game.tournament game=game.id %}",
                 type: 'POST',
                 beforeSend: function (xhr, settings) {
                     xhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');
@@ -344,7 +344,7 @@
         }
         const last_bet = $(".new-round-count[type='bet']").last();
         let last_bet_value = 0;
-        $(".new-round-count > i").click(function() {
+        $(".new-round-count > i").click(function(e,websocket) {
             last_bet_value = parseInt(last_bet.children('.bet').text());
             const $this = $(this);
             if ($this.hasClass('disabled'))
@@ -408,38 +408,40 @@
                 last_bet.children('.fa-minus-square').removeClass('disabled');
             }
 
-            if (hands_count['bet'] == num_cards) {
-                if (!last_bet.children('.fa-minus-square').hasClass('disabled'))
-                    last_bet.children('.fa-minus-square').trigger('click');
-                else
-                    last_bet.children('.fa-plus-square').trigger('click');
+            if(!websocket){
+                if($this.hasClass("fa-minus-square")){
+
+                    ws.send(
+                        JSON.stringify(
+                            {
+                                "increment": -increment,
+                                "player": $this.attr("player"),
+                                "type": $this.parent().attr("type"),
+                                "plus": $this.siblings('.fa-plus-square').hasClass("disabled") ? "disabled" : "enabled",
+                                "minus": $this.hasClass("disabled") ? "disabled" : "enabled"
+                            }
+                        )
+                    )
+                }else{
+                    ws.send(
+                        JSON.stringify(
+                            {
+                                "increment": increment,
+                                "player": $this.attr("player"),
+                                "type": $this.parent().attr("type"),
+                                "plus": $this.hasClass("disabled") ? "disabled" : "enabled",
+                                "minus": $this.siblings('.fa-minus-square').hasClass("disabled") ? "disabled" : "enabled"
+                            }
+                        )
+                    )
+                }
             }
 
-            if($this.hasClass("fa-minus-square")){
-
-                ws.send(
-                    JSON.stringify(
-                        {
-                            "increment": -increment,
-                            "player": $this.attr("player"),
-                            "type": $this.parent().attr("type"),
-                            "plus": $this.siblings('.fa-plus-square').hasClass("disabled") ? "disabled" : "enabled",
-                            "minus": $this.hasClass("disabled") ? "disabled" : "enabled"
-                        }
-                    )
-                )
-            }else{
-                ws.send(
-                    JSON.stringify(
-                        {
-                            "increment": increment,
-                            "player": $this.attr("player"),
-                            "type": $this.parent().attr("type"),
-                            "plus": $this.hasClass("disabled") ? "disabled" : "enabled",
-                            "minus": $this.siblings('.fa-minus-square').hasClass("disabled") ? "disabled" : "enabled"
-                        }
-                    )
-                )
+            if (hands_count['bet'] == num_cards) {
+                if (!last_bet.children('.fa-minus-square').hasClass('disabled'))
+                    last_bet.children('.fa-minus-square').trigger('click',true);
+                else
+                    last_bet.children('.fa-plus-square').trigger('click',true);
             }
         });
 

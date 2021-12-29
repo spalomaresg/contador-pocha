@@ -1,9 +1,30 @@
 
 let ws = new WebSocket('ws:' + window.location.hostname + ':8000/round_results')
 
-ws.onopen = () => {
-    console.log("Socket connection opened")
+//window.addEventListener("focus", () => ws = new WebSocket('ws:' + window.location.hostname + ':8000/round_results')
+//);
+
+function visibility_change(){
+  console.log("Change of visibility")
+  switch(document.visibilityState) {
+    case "hidden":
+      console.log("hidden");
+      break;
+    case "visible":
+      console.log("visible")
+      break;
   }
+}
+
+//document.addEventListener("visibilitychange",visibility_change(),false)
+
+ws.onopen = () => {
+  console.log("Socket connection opened")
+}
+
+ws.onclose = () =>{
+  console.log("Socket connection closed")
+}
 
 ws.onmessage = (event) =>{
 
@@ -11,7 +32,7 @@ ws.onmessage = (event) =>{
   response = JSON.parse(event.data)
   response = JSON.parse(response["text"])
 
-  // Check wheter the incoming message corresponds to
+  // Check wether the incoming message corresponds to
   // a new round message or a bet update
   
   if(response.hasOwnProperty("num_cards")){
@@ -19,35 +40,29 @@ ws.onmessage = (event) =>{
   }else{
 
     increment = parseInt(response["increment"])
-
-    span = $("." + response["type"] + "[player=" + response["player"].split("-")[0] + "]")
-    span.text(parseInt(span.text()) + increment)
-
-    count = $("#" + response["type"] + "s-count")
-    count.text(parseInt(count.text()) + increment)
-    hands_count[response["type"]] += increment
-
-    plus = $( ".fa-plus-square" + "[player=" + response["player"] + "]")
-    minus = $( ".fa-minus-square" + "[player=" + response["player"] + "]")
-
-    if(response["plus"] == "disabled")
-      plus.addClass("disabled")
-    else
-      plus.removeClass("disabled") 
-
-    if(response["minus"] == "disabled")
-      minus.addClass("disabled")
-    else
-      minus.removeClass("disabled") 
+    if(increment == 1) elem = $("." + response["type"] + ".fa-plus-square" + "[player=" + response["player"] + "]")
+    else elem = $("." + response["type"] + ".fa-minus-square" + "[player=" + response["player"] + "]")
+    player = response["player"]
+    elem.trigger('click', true);
   }
 }
 
 
+/*
+  This function is aimed to serve as a non-reloading
+  solution to update the table información whenever
+  a new message come from the weboscket.
+  This is a much cleaner design much but requires some
+  logic (reordering of columns to match descending order, 
+  color map...) which is currently on the server side 
+  of the application.
+*/
 
-/* Insert new row in the table thorugh javascript
-   This is a cleaner method than refreshing the page
-   but it would require additional code to reorder
-   the columns according to each player points.
+/* 
+  Insert new row in the table thorugh javascript
+  This is a cleaner method than refreshing the page
+  but it would require additional code to reorder
+  the columns according to each player points.
     
     JSON structure
 
