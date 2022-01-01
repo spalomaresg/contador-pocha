@@ -65,22 +65,33 @@ def tournament_next_players(request, tournament):
 
 @csrf_exempt
 def tournament_standings(request, tournament):
-    tournament = Tournament.objects.get(id=tournament)
-    players = Player.objects.filter(gameplayer_player__game__tournament=tournament).distinct().values_list('name', flat=True)
-    total_standings = {player: {'total': 0, 'wins': 0} for player in players}
-    games_standings = {}
-    for game in Game.objects.filter(tournament=tournament).order_by('date'):
-        players_pos = game.get_game_players_pos()
-        games_standings[game.date.strftime("%d-%m-%Y")] = {player: players_pos.get(player, {}) for player in players}
-        for player, details in players_pos.items():
-            total_standings[player]['total'] += details['score']
-            if details['pos'] == 'victory':
-                total_standings[player]['wins'] += 1
 
-    return JsonResponse({
-        'total_standings': {k: v for k, v in sorted(total_standings.items(), key=lambda item: item[1]['total'], reverse=True)},
-        'games_standings': games_standings
-    })
+    standings = {}
+    for game in Game.objects.filter(tournament__id=tournament).order_by('date'):
+        players = Player.objects.filter(gameplayer_player__game=game).order_by('name')
+        players_names = ', '.join(players.values_list('name', flat=True))
+
+        if players_names not in standings:
+            standings[players_names] = {
+                'total_standings': {player.name: {'total': 0, 'wins': 0} for player in players},
+                'games_standings': {}
+            }
+
+        players_pos = game.get_game_players_pos()
+        standings[players_names]['games_standings'][game.id] = {
+            'date': game.date.strftime("%d-%m-%Y"),
+            'players': {player.name: players_pos.get(player.name, {}) for player in players}
+        }
+        
+        for player, details in players_pos.items():
+            standings[players_names]['total_standings'][player]['total'] += details['score']
+            if details['pos'] == 'victory':
+                standings[players_names]['total_standings'][player]['wins'] += 1
+
+    for players_names, standing in standings.items():
+        standings[players_names]['total_standings'] = {k: v for k, v in sorted(standing['total_standings'].items(), key=lambda item: item[1]['total'], reverse=True)}
+    
+    return JsonResponse(standings)
 
 
 def tournament_stats(request, tournament):

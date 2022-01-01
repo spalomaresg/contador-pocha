@@ -103,38 +103,40 @@
             </div>
         </div>
         <div class="tab-pane fade tableFixHead" id="pills-standings" role="tabpanel" aria-labelledby="pills-standings-tab">
+            {% for players_names, standing in standings.items %}
             <table id="table-standings" class="table table-condensed table-striped pb-5 mb-5">
                 <thead class="thead-dark">
                     <tr>
                         <th>Date</th>
-                        {% for player in standings.total_standings.keys %}
+                        {% for player in standing.total_standings.keys %}
                         <th>{{ player }}</th>
                         {% endfor %}
                     </tr>
                 </thead>
                 <tbody>
-                    {% for date, game_standings in standings.games_standings.items %}
+                    {% for id, game_standings in standing.games_standings.items %}
                     <tr>
-                        <td>{{ date }}</td>
-                        {% for player in standings.total_standings.keys %}
-                        <td {% if game_standings|get:player|get:"pos" == "victory" %}class="font-weight-bold text-success"{% endif %}>{{ game_standings|get:player|get:"score" }}</td>
+                        <td>{{ game_standings.date }}</td>
+                        {% for player in standing.total_standings.keys %}
+                        <td {% if game_standings.players|get:player|get:"pos" == "victory" %}class="font-weight-bold text-success"{% endif %}>{{ game_standings.players|get:player|get:"score" }}</td>
                         {% endfor %}
                     </tr>
                     {% endfor %}
                     <tr class="font-weight-bold">
                         <td>Total wins</td>
-                        {% for details in standings.total_standings.values %}
+                        {% for details in standing.total_standings.values %}
                         <td>{{ details.wins }}</td>
                         {% endfor %}
                     </tr>
                     <tr class="font-weight-bold">
                         <td>Total score</td>
-                        {% for details in standings.total_standings.values %}
+                        {% for details in standing.total_standings.values %}
                         <td>{{ details.total }}</td>
                         {% endfor %}
                     </tr>
                 </tbody>
             </table>
+            {% endfor %}
         </div>
         <div class="tab-pane fade" id="pills-stats" role="tabpanel" aria-labelledby="pills-game-tab">
             <div class="row mt-3">
