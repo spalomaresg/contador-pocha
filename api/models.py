@@ -54,9 +54,16 @@ class Player(models.Model):
 
 
 class GamePlayer(models.Model):
+    RESULT_CHOICES = (
+        ("victory","victory"),
+        ("podium","podium"),
+        ("defeat","defeat"),
+        ("other","other")
+    )
     game = models.ForeignKey(Game, related_name="gameplayers", on_delete=models.CASCADE)
     player = models.ForeignKey(Player, related_name="gameplayer_player", on_delete=models.CASCADE)
     score = models.SmallIntegerField(default=0)
+    result = models.CharField(max_length=7,choices = RESULT_CHOICES,default="other",blank=True)
 
     class Meta:
         ordering = ['-score', 'id']
@@ -77,11 +84,20 @@ class Bet(models.Model):
         ("hand", "hand"),
         ("dessert", "dessert"),
     )
+
+    PHASE_CHOICES = (
+        ("ascending","ascending"),
+        ("max_cards","max_cards"),
+        ("descending", "descending")
+    )
     round = models.ForeignKey(Round, related_name="bets", on_delete=models.CASCADE)
     player = models.ForeignKey(Player, related_name="bet_player", on_delete=models.CASCADE)
     bet = models.PositiveSmallIntegerField()
     won = models.PositiveSmallIntegerField()
+    score = models.SmallIntegerField(default=0)
     hand = models.CharField(max_length=10, choices=HAND_CHOICES, default="", blank=True)
+    phase = models.CharField(max_length=11,choices = PHASE_CHOICES,default="ascending",blank=True)
+    position = models.PositiveSmallIntegerField(default="0")
 
 
 @receiver(post_save, sender=Bet)

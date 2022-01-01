@@ -34,7 +34,7 @@ async def tournaments(request):
 
 async def tournament(request, tournament):
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(timeout=None) as client:
         games = await client.get("http://127.0.0.1:8000/api/tournaments/{}/games/".format(tournament))
         players = await client.get("http://127.0.0.1:8000/api/players/".format(tournament))
         next_players = await client.get("http://127.0.0.1:8000/api/tournaments/{}/next_players/".format(tournament))
