@@ -42,7 +42,7 @@ async def tournament(request, tournament):
         stats = await client.get("http://127.0.0.1:8000/api/tournaments/{}/stats/".format(tournament))
     
     context = {
-        'tournament': tournament,
+        'tournament': await sync_to_async(Tournament.objects.get, thread_sensitive=True)(id=tournament),
         'games': games.json(),
         'players': players.json(),
         'next_players': next_players.json(),
@@ -76,6 +76,7 @@ class GameView(TemplateView):
             game = await client.get("http://127.0.0.1:8000/api/tournaments/{}/{}/".format(tournament, game))
             game = game.json()
             last_round = game['rounds'][-1]['id'] if game['rounds'] else 0
+            print(game['tournament'])
             context = {
                 'game': game,
                 'last_round': last_round

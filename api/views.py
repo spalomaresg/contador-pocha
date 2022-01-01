@@ -32,13 +32,13 @@ def tournament_list(request):
 @csrf_exempt
 def tournament_games(request, tournament):
     if request.method == 'GET':
-        snippets = Game.objects.filter(tournament__name=tournament)
+        snippets = Game.objects.filter(tournament__id=tournament)
         serializer = GameSerializerGet(snippets, many=True)
         return JsonResponse(serializer.data, safe=False)
 
     elif request.method == 'POST':
         data = JSONParser().parse(request)
-        data['tournament'] = Tournament.objects.get(name=tournament).id
+        data['tournament'] = Tournament.objects.get(id=tournament).id
         players = data.pop('players')
         serializer = GameSerializer(data=data)
         if serializer.is_valid():
@@ -53,7 +53,7 @@ def tournament_games(request, tournament):
 @csrf_exempt
 def tournament_next_players(request, tournament):
     response = {'next_players': []}
-    tournament = Tournament.objects.get(name=tournament)
+    tournament = Tournament.objects.get(id=tournament)
     last_game = Game.objects.filter(tournament=tournament).order_by('id').last()
     if last_game:
         next_players = deque(GamePlayer.objects.filter(game=last_game).order_by('id').values_list('player__name', flat=True))
@@ -64,7 +64,7 @@ def tournament_next_players(request, tournament):
 
 @csrf_exempt
 def tournament_standings(request, tournament):
-    tournament = Tournament.objects.get(name=tournament)
+    tournament = Tournament.objects.get(id=tournament)
     players = Player.objects.filter(gameplayer_player__game__tournament=tournament).distinct().values_list('name', flat=True)
     total_standings = {player: {'total': 0, 'wins': 0} for player in players}
     games_standings = {}
@@ -87,7 +87,7 @@ def tournament_stats(request, tournament):
     lose streak
 
     """
-    tournament = Tournament.objects.get(name=tournament)
+    tournament = Tournament.objects.get(id=tournament)
     players = list(Player.objects.filter(gameplayer_player__game__tournament=tournament).distinct().values_list('name', flat=True))
     game_max_players = max([len(GamePlayer.objects.filter(game=game)) for game in Game.objects.filter(tournament=tournament)], default=0)
     game_min_players = min([len(GamePlayer.objects.filter(game=game)) for game in Game.objects.filter(tournament=tournament)], default=0)
@@ -214,6 +214,7 @@ def game_info(request, tournament, game):
         next_round_players = next_round_players[pos:] + next_round_players[:pos]
         data['numCards'] = get_num_cards(data)
         data['next_round_players'] = next_round_players
+        data['tournament_id'] = tournament
         return JsonResponse(data, safe=False)
 
 

@@ -28,7 +28,7 @@
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'web:tournaments' %}">Home</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'web:tournament' tournament=game.tournament %}">{{ game.tournament }}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'web:tournament' tournament=game.tournament_id %}">{{ game.tournament }}</a></li>
         <li class="breadcrumb-item active" aria-current="page">{{ game.date }}</li>
       </ol>
     </nav>
@@ -319,7 +319,7 @@
         const last_round = {{ last_round }};
         function game_last_round() {
             $.ajax({
-                url: "{% url 'api:game_last_round' tournament=game.tournament game=game.id %}",
+                url: "{% url 'api:game_last_round' tournament=game.tournament_id game=game.id %}",
                 type: 'POST',
                 beforeSend: function (xhr, settings) {
                     xhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');
