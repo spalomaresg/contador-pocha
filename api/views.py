@@ -73,7 +73,7 @@ def tournament_standings(request, tournament):
 
         if players_names not in standings:
             standings[players_names] = {
-                'total_standings': {player.name: {'total': 0, 'wins': 0} for player in players},
+                'total_standings': {player.name: {'total': 0, 'wins': 0, 'difference': 0} for player in players},
                 'games_standings': {}
             }
 
@@ -90,6 +90,11 @@ def tournament_standings(request, tournament):
 
     for players_names, standing in standings.items():
         standings[players_names]['total_standings'] = {k: v for k, v in sorted(standing['total_standings'].items(), key=lambda item: item[1]['total'], reverse=True)}
+        prev = list(standing['total_standings'].values())[0]['total']
+        for player, standing in standing['total_standings'].items():
+            total = standing['total']
+            standings[players_names]['total_standings'][player]['difference'] = prev - total
+            prev = standing['total']
     
     return JsonResponse(standings)
 

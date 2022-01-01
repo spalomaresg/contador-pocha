@@ -104,7 +104,7 @@
         </div>
         <div class="tab-pane fade tableFixHead" id="pills-standings" role="tabpanel" aria-labelledby="pills-standings-tab">
             {% for players_names, standing in standings.items %}
-            <table id="table-standings" class="table table-condensed table-striped pb-5 mb-5">
+            <table class="table table-condensed table-striped pb-5 mb-5 table-standings">
                 <thead class="thead-dark">
                     <tr>
                         <th>Date</th>
@@ -132,6 +132,12 @@
                         <td>Total score</td>
                         {% for details in standing.total_standings.values %}
                         <td>{{ details.total }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr class="font-weight-bold differences">
+                        <td>Difference</td>
+                        {% for details in standing.total_standings.values %}
+                        <td>{% if not forloop.first %}{{ details.difference }}{% endif %}</td>
                         {% endfor %}
                     </tr>
                 </tbody>
@@ -380,22 +386,6 @@
             tfoot.append(tr);
             table.append(tfoot);
         });
-
-        const differencesRow = $('<tr>', {'class': 'font-weight-bold'});
-        $("#table-standings tbody tr:last td").each(function(idx) {
-            if (idx == 0) {
-                differencesRow.append($('<td>').text('Differences'));
-            }
-            else if (idx == 1) {
-                differencesRow.append($('<td>').text(''));
-            }
-            else {
-                const prev = parseInt($(this).prev().text());
-                const current = parseInt($(this).text());
-                differencesRow.append($('<td>').text(prev - current));
-            }
-        });
-        $("#table-standings tbody").append(differencesRow);
 
 
     </script>
