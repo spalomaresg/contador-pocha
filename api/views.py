@@ -11,6 +11,7 @@ from api.serializers import *
 import json
 import math
 from collections import deque
+from django.db.models import Max,Min,Count,Avg
 
 
 @csrf_exempt
@@ -89,18 +90,11 @@ def tournament_stats(request, tournament):
     """
     tournament = Tournament.objects.get(id=tournament)
     players = list(Player.objects.filter(gameplayer_player__game__tournament=tournament).distinct().values_list('name', flat=True))
-    game_max_players = max([len(GamePlayer.objects.filter(game=game)) for game in Game.objects.filter(tournament=tournament)], default=0)
-    game_min_players = min([len(GamePlayer.objects.filter(game=game)) for game in Game.objects.filter(tournament=tournament)], default=0)
-    max_cards = math.floor(40/game_min_players) if players else 0
+    count = GamePlayer.objects.filter(game__tournament__name=tournament).values("game").order_by().annotate(Count("id")).aggregate(Max("id__count"),Min("id__count"))
+    max_cards = math.floor(40/count["id__count__min"]) if players else 0
     stats = {
         'players': players,
-        'game_max_players': [i for i in range(1, game_max_players + 1)],
-        'by_hand_pos': {i: {'win': 0, 'total': 0} for i in range(0, max_cards)},
-        'by_hand_pos_player': {player: {i: {'win': 0, 'total': 0} for i in range(0, max_cards)} for player in players},
-        'by_lose_type': {player: {'under': 0, 'total': 0} for player in players},
-        'total_bets': {player: 0 for player in players},
-        'total_wins_zero': {player: 0 for player in players},
-        'total_loses_zero': {player: 0 for player in players},
+        'game_max_players': [i for i in range(1, count["id__count__max"] + 1)],
         'players_bets': {player: {i: {'win': 0, 'lose': 0, 'total': 0} for i in range(0, max_cards+1)} for player in players},
         'players_game_phases': {player: {'ascending': 0,
                                          'max_cards': 0,
@@ -110,9 +104,32 @@ def tournament_stats(request, tournament):
                                       'podium': {'score': 0, 'total': 0},
                                       'other': {'score': 0, 'total': 0},
                                       'defeat': {'score': 0, 'total': 0}} for player in players + ['Promedio']},
-        'player_rounds_pos': {player: {i: {'score': 0, 'total': 0} for i in range(1, game_max_players+1)} for player in
+        'player_rounds_pos': {player: {i: {'score': 0, 'total': 0} for i in range(1, count["id__count__max"]+1)} for player in
                          players},
     }
+
+    players_score_by_result = GamePlayer.objects.filter(game__tournament__name=tournament).values("player__name","result").annotate(Avg("score"),Count("id")).order_by()
+    players_score_by_phase = Bet.objects.filter(round__game__tournament__name=tournament).values("player__name","phase").annotate(Avg("score")).order_by()
+    players_score_by_position = Bet.objects.filter(round__game__tournament__name=tournament).values("player__name","position").annotate(Avg("score"),Count("id")).order_by()
+    for elem in players_score_by_result:
+        stats["players_game_pos"][elem["player__name"]][elem["result"]]["score"] = '{:0.2f}'.format(elem["score__avg"])
+        stats["players_game_pos"][elem["player__name"]][elem["result"]]["total"] = elem["id__count"]
+        totals = GamePlayer.objects.filter(game__tournament__name=tournament).values("result").annotate(Avg("score"),Count("id")).order_by()
+        for elem in totals:
+            stats["players_game_pos"]["Promedio"][elem["result"]]["score"] = '{:0.2f}'.format(elem["score__avg"])
+            stats["players_game_pos"]["Promedio"][elem["result"]]["total"] = elem["id__count"]
+
+    for elem in players_score_by_phase:
+        stats["players_game_phases"][elem["player__name"]][elem["phase"]] = '{:0.2f}'.format(elem["score__avg"])
+        totals = Bet.objects.filter(round__game__tournament__name=tournament).values("phase").annotate(Avg("score")).order_by()
+        for elem in totals:
+            stats["players_game_phases"]["Promedio"][elem["phase"]] = '{:0.2f}'.format(elem["score__avg"])
+
+    for elem in players_score_by_position:
+        stats["player_rounds_pos"][elem["player__name"]][elem["position"]+1]["score"] = '{:0.2f}'.format(elem["score__avg"])
+        stats["player_rounds_pos"][elem["player__name"]][elem["position"]+1]["total"] = elem["id__count"]
+
+    """
     games = Game.objects.filter(tournament=tournament)
     for game in games:
         game_players = list(GamePlayer.objects.filter(game=game).order_by('id').values_list('player__name', flat=True))
@@ -125,6 +142,9 @@ def tournament_stats(request, tournament):
             stats['players_game_pos'][player][details['pos']]['total'] += 1
             stats['players_game_pos']['Promedio'][details['pos']]['score'] += details['score']
             stats['players_game_pos']['Promedio'][details['pos']]['total'] += 1
+            #game_player_object = GamePlayer.objects.filter(game=game,player__name = player)[0]
+            #game_player_object.result = details['pos']
+            #game_player_object.save()
         rounds = Round.objects.filter(game=game)
         game_phase = 'ascending'
         max_cards = math.floor(40/len(game_players))
@@ -138,35 +158,20 @@ def tournament_stats(request, tournament):
             for i, player in enumerate(round_players):
                 bet = Bet.objects.get(round=rd, player__name=player)
                 win = bet.bet == bet.won
+                #bet.phase = game_phase
+                #bet.position = i
+                #bet.save()
                 score = 10 + bet.won * 5 if bet.bet == bet.won else -abs(bet.bet - bet.won) * 5
-                stats['by_hand_pos'][i]['total'] += 1
-                stats['by_hand_pos_player'][player][i]['total'] += 1
+                bet.score = score
+                bet.save()
                 stats['players_bets'][player][bet.bet]['total'] += 1
-                stats['total_bets'][player] += bet.bet
                 stats['players_game_phases'][player][game_phase] += score
                 stats['players_game_phases']['Promedio'][game_phase] += score
                 stats['player_rounds_pos'][player][i+1]['score'] += score
                 stats['player_rounds_pos'][player][i+1]['total'] += 1
-                if win:
-                    stats['by_hand_pos'][i]['win'] += 1
-                    stats['by_hand_pos_player'][player][i]['win'] += 1
-                    stats['players_bets'][player][bet.bet]['win'] += 1
-                    if bet.bet == 0:
-                        stats['total_wins_zero'][player] += 1
-                else:
-                    stats['by_lose_type'][player]['total'] += 1
-                    stats['by_lose_type'][player]['under'] += 1 if bet.bet < bet.won else 0
-                    stats['players_bets'][player][bet.bet]['lose'] += 1
-                    if bet.bet == 0:
-                        stats['total_loses_zero'][player] += 1
-    """for hand_pos, details in stats['by_hand_pos'].items():
-        stats['by_hand_pos'][hand_pos] = details['win'] / details['total']
-    for player, hands_pos in stats['by_hand_pos_player'].items():
-        for hand_pos, details in hands_pos.items():
-            stats['by_hand_pos_player'][player][hand_pos] = details['win'] / details['total']"""
-    for player, details in stats['by_lose_type'].items():
-        if details['total']:
-            stats['by_lose_type'][player] = details['under'] / details['total']
+                if win: stats['players_bets'][player][bet.bet]['win'] += 1
+                else: stats['players_bets'][player][bet.bet]['lose'] += 1
+                
     for player, details in stats['players_game_phases'].items():
         player_details = stats['players_game_phases'][player]
         if stats['players_game_phases'][player]['total_games']:
@@ -184,7 +189,7 @@ def tournament_stats(request, tournament):
         for pos, details in pos_details.items():
             if details['total']:
                 details['score'] = "{:0.2f}".format(details['score'] / details['total'])
-
+    """
     return JsonResponse(stats)
 
 
